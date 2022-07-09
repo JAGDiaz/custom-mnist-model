@@ -1,4 +1,3 @@
-from gc import callbacks
 import tensorflow as tf
 from tensorflow import keras
 import os
@@ -27,28 +26,35 @@ if __name__ == "__main__":
 
     curr_dir = os.getcwd()
     mnist_weights_folder = os.path.join(curr_dir, "weights_folder")
-
     if not os.path.exists(mnist_weights_folder):
         os.makedirs(mnist_weights_folder)
 
-    weight_callback = SaveWeightsAtEpoch(mnist_weights_folder)
+    neurons_in_dense = [10*ii for ii in range(5, 16)]
+    for neuron_number in neurons_in_dense:
+        particular_folder = os.path.join(mnist_weights_folder, f"num_neurons_{neuron_number:04d}")
+        if not os.path.exists(particular_folder):
+            os.makedirs(particular_folder)
 
-    mnist = keras.datasets.mnist
 
-    (x_train, y_train),(x_test, y_test) = mnist.load_data()
-    x_train, x_test = x_train / 255.0, x_test / 255.0
+        weight_callback = SaveWeightsAtEpoch(particular_folder)
 
-    model = tf.keras.models.Sequential([
-        tf.keras.layers.Flatten(input_shape=(28, 28)),
-        tf.keras.layers.Dense(128, activation='relu'),
-        tf.keras.layers.Dropout(0.2),
-        tf.keras.layers.Dense(10, activation='softmax')])
+        mnist = keras.datasets.mnist
 
-    model.compile(optimizer='adam',
-                loss='sparse_categorical_crossentropy',
-                metrics=['accuracy'])
+        (x_train, y_train),(x_test, y_test) = mnist.load_data()
+        x_train, x_test = x_train / 255.0, x_test / 255.0
 
-    model.fit(x_train, y_train, epochs=5, callbacks=[weight_callback], shuffle=True, batch_size=500)
-    model.evaluate(x_test, y_test, verbose=2)
+        model = tf.keras.models.Sequential([
+            tf.keras.layers.Flatten(input_shape=(28, 28), name="Flattener"),
+            tf.keras.layers.Dense(neuron_number, activation='relu', name="Dense"),
+            tf.keras.layers.Dropout(0.2, name="Dropout"),
+            tf.keras.layers.Dense(10, activation='softmax', name="Output")])
 
+        model.compile(optimizer='adam',
+                    loss='sparse_categorical_crossentropy',
+                    metrics=['accuracy'])
+
+        model.fit(x_train, y_train, epochs=5, callbacks=[weight_callback], shuffle=True, batch_size=500)
+        model.evaluate(x_test, y_test, batch_size=500)
+
+        model.summary()
 
