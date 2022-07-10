@@ -1,6 +1,8 @@
 import tensorflow as tf
 from tensorflow import keras
 import os
+import numpy as np
+import matplotlib.pyplot as plt
 
 class SaveWeightsAtEpoch(keras.callbacks.Callback):
     """
@@ -24,12 +26,18 @@ class SaveWeightsAtEpoch(keras.callbacks.Callback):
 
 if __name__ == "__main__":
 
+    mnist = keras.datasets.mnist
+
+    (x_train, y_train),(x_test, y_test) = mnist.load_data()
+    x_train, x_test = x_train / 255.0, x_test / 255.0
+
     curr_dir = os.getcwd()
     mnist_weights_folder = os.path.join(curr_dir, "weights_folder")
     if not os.path.exists(mnist_weights_folder):
         os.makedirs(mnist_weights_folder)
 
-    neurons_in_dense = [10*ii for ii in range(5, 16)]
+    neurons_in_dense = [10*ii for ii in range(5, 30)]
+    losses_n_accuracies = []
     for neuron_number in neurons_in_dense:
         particular_folder = os.path.join(mnist_weights_folder, f"num_neurons_{neuron_number:04d}")
         if not os.path.exists(particular_folder):
@@ -37,11 +45,6 @@ if __name__ == "__main__":
 
 
         weight_callback = SaveWeightsAtEpoch(particular_folder)
-
-        mnist = keras.datasets.mnist
-
-        (x_train, y_train),(x_test, y_test) = mnist.load_data()
-        x_train, x_test = x_train / 255.0, x_test / 255.0
 
         model = tf.keras.models.Sequential([
             tf.keras.layers.Flatten(input_shape=(28, 28), name="Flattener"),
@@ -53,8 +56,24 @@ if __name__ == "__main__":
                     loss='sparse_categorical_crossentropy',
                     metrics=['accuracy'])
 
-        model.fit(x_train, y_train, epochs=5, callbacks=[weight_callback], shuffle=True, batch_size=500)
-        model.evaluate(x_test, y_test, batch_size=500)
+        model.fit(x_train, y_train, epochs=5, callbacks=[weight_callback], shuffle=True, batch_size=500, verbose=0)
+        result = model.evaluate(x_test, y_test, batch_size=500, verbose=0)
+        losses_n_accuracies.append(result)
 
-        model.summary()
+losses_n_accuracies = np.array(losses_n_accuracies)
+fig, ax = plt.subplots(2,figsize=(10,10), sharex='col')
 
+ax[0].plot(neurons_in_dense, losses_n_accuracies[...,0])
+ax[0].grid(True, which='both')
+ax[0].set_ylabel("Test Loss")
+ax[0].set_yscale('log')
+
+
+ax[1].plot(neurons_in_dense, 100*losses_n_accuracies[...,1])
+ax[1].grid(True, which='both')
+ax[1].set_ylabel("\% Accuracy")
+ax[1].set_xlabel("Number of Neurons")
+
+fig.tight_layout()
+fig.savefig("loss_accuracy_by_neuron.png")
+plt.close(fig)
